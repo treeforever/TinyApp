@@ -5,6 +5,7 @@ const express = require("express");
 const methodOverride = require("method-override");
 const bodyParser = require("body-parser");
 const MongoClient = require("mongodb").MongoClient;
+const cookieParser = require('cookie-parser')
 
 const PORT = process.env.PORT || 8080;
 const MONGODB_URI = "mongodb://127.0.0.1:27017/url_shortener";
@@ -13,7 +14,8 @@ const app = express();
 
 app.set("view engine", "ejs");
 app.use(methodOverride('_method'));
-app.use(bodyParser.urlencoded());
+app.use(cookieParser());
+app.use(bodyParser.urlencoded({ extended: false }));
 
 MongoClient.connect(MONGODB_URI, (err, db) => {
   if (err) {
@@ -27,19 +29,32 @@ MongoClient.connect(MONGODB_URI, (err, db) => {
   }
 
   app.get("/", (req, res) => {
-    res.redirect("/urls/new");
+    res.redirect("/urls");
+  });
+
+  app.post("/login", (req, res) => {
+    res.cookie("username", req.body.username);
+    res.redirect("/");
+  });
+
+  app.post("/logout", (req, res) => {
+    res.cookie("username", "");
+    res.redirect("/");
   });
 
   app.get("/urls", (req, res) => {
     db.collection("urls").find().toArray((err, results) => {
       res.render("urls_index", {
-        database: results
+        database: results,
+        username: req.cookies["username"]
       });
     });
   });
 
   app.get("/urls/new", (req, res) => {
-    res.render("urls_new");
+    res.render("urls_new", {
+      username: req.cookies["username"]
+    });
   });
 
   //This function will generate a random string of 6 letters or numbers, for
@@ -83,15 +98,22 @@ MongoClient.connect(MONGODB_URI, (err, db) => {
       } else {
         res.render("urls_show", {
           shortURL: shortURL,
-          longURL: result.longURL
+          longURL: result.longURL,
+          username: req.cookies["username"]
         });
       }
     });
   });
 
-  app.get("/flash", (req, res) => {
-    req.flash("error", "Url does not exist!");
-    res.redirect('/urls');
+  app.get("/u/:shortURL", (req, res) => {
+    let shortURL = req.params.shortURL;
+    searchByShortUrl(db, shortURL, (err, result) => {
+      if (err || result == null) {
+        res.redirect('/urls');
+      } else {
+        res.redirect(result.longURL);
+      }
+    });
   });
 
   app.put("/urls/:id", (req, res) => {
@@ -107,16 +129,7 @@ MongoClient.connect(MONGODB_URI, (err, db) => {
       res.redirect('/urls'));
     });
 
-  app.get("/u/:shortURL", (req, res) => {
-    let shortURL = req.params.shortURL;
-    searchByShortUrl(db, shortURL, (err, result) => {
-      if (err || result == null) {
-        res.redirect('/urls');
-      } else {
-        res.redirect(result.longURL);
-      }
-    });
-  });
+
 
   app.listen(PORT, () => {
     console.log(`Example app listening on port ${PORT}!`);

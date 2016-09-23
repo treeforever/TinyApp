@@ -8,6 +8,23 @@
             </a>
         </div>
 
+        <% if (username === "") { %>
+          <span class="log-in">
+            <form method="POST" action="/login">
+              <textarea name="username"></textarea>
+              <button type="summit">login</button>
+            </form>
+          </span>
+        <% } else { %>
+          <span class="logged-in">
+            <p><%= username %> logged in</p>
+            <form method="POST" action="/logout">
+              <button type="summit">logout</button>
+            </form>
+          </span>
+        <% }; %>
+
+
         <ul class="nav navbar-nav">
             <li><a href="/">Home</a></li>
             <li><a href="/urls">Edit existing urls</a></li>
